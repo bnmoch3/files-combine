@@ -1,7 +1,8 @@
 # files-combine
 
 A command-line tool to combine multiple files into a single document formatted
-for use LLMs like Claude.
+for use LLMs like Claude. Inspired by simonw's
+[files-to-prompt](https://github.com/simonw/files-to-prompt)
 
 ## Installation
 
