@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 )
 
@@ -147,7 +148,7 @@ func main() {
 	filesCh, walkErrCh := walkFiles(done, dirPath)
 
 	// stage 2: process files with multiple workers
-	numWorkers := 4
+	numWorkers := runtime.NumCPU()
 	workerChs := make([]<-chan FileResult, numWorkers)
 	for i := 0; i < numWorkers; i++ {
 		workerChs[i] = processFile(done, filesCh)
