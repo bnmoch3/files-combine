@@ -27,8 +27,8 @@ var rootCmd = &cobra.Command{
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// validate format flag
-		if format != "cxml" && format != "markdown" {
-			log.Fatalf("Invalid format: %s. Must be 'cxml' or 'markdown'", format)
+		if format != "xml" && format != "markdown" {
+			log.Fatalf("Invalid format: %s. Must be 'xml' or 'markdown'", format)
 		}
 
 		var path string
@@ -44,7 +44,11 @@ var rootCmd = &cobra.Command{
 
 		// set default output file if not provided
 		if outputFile == "" {
-			outputFile = "combined.txt"
+			if format == "markdown" {
+				outputFile = "output.md"
+			} else {
+				outputFile = "output.xml"
+			}
 		}
 
 		log.Printf("Processing path: %s", path)
@@ -102,7 +106,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&ignoreGitignore, "ignore-gitignore", false, "Ignore .gitignore files")
 	rootCmd.Flags().StringSliceVar(&ignorePatterns, "ignore", []string{}, "Patterns to ignore")
 	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: combined.txt)")
-	rootCmd.Flags().StringVarP(&format, "format", "f", "markdown", "Output format: 'cxml' or 'markdown' (default: markdown)")
+	rootCmd.Flags().StringVarP(&format, "format", "f", "markdown", "Output format: 'xml' or 'markdown' (default: markdown)")
 	rootCmd.Flags().BoolVarP(&lineNumbers, "line-numbers", "n", false, "Add line numbers")
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print files that will be combined without processing")
 }

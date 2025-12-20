@@ -9,7 +9,7 @@ import (
 
 type CombineOpts struct {
 	OutputFile  string
-	Format      string // "markdown" or "cxml"
+	Format      string // "markdown" or "xml"
 	LineNumbers bool
 }
 
@@ -41,7 +41,7 @@ func Combine(results []FileResult, opts CombineOpts) error {
 	}
 	defer file.Close()
 
-	if opts.Format == "cxml" {
+	if opts.Format == "xml" {
 		return combineAsXML(file, results, opts.LineNumbers)
 	}
 	return combineAsMarkdown(file, results, opts.LineNumbers)
