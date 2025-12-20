@@ -99,7 +99,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-const version = "1.0.0"
+const version = "1.0.1"
 
 func init() {
 	rootCmd.Version = version
