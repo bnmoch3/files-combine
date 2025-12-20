@@ -18,6 +18,12 @@ cd files-combine
 go build -o files-combine cmd/main.go
 ```
 
+## Features
+
+- Respects .gitignore by default
+- Customizable ignore patterns
+- Line numbering support
+
 ## Usage
 
 ```
@@ -89,15 +95,6 @@ highlighting based on file extension. Handles nested backticks automatically.
   </document>
 </documents>
 ```
-
-## Features
-
-- Concurrent file processing for performance
-- Respects .gitignore by default
-- Supports multiple file extensions
-- Syntax highlighting in Markdown output
-- Customizable ignore patterns
-- Line numbering support
 
 ## License
 
