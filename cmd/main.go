@@ -54,7 +54,7 @@ var rootCmd = &cobra.Command{
 		log.Printf("Dry run: %v", dryRun)
 
 		// build gather opts
-		opts := filescombine.GatherOptions{
+		gatherOpts := filescombine.GatherOptions{
 			Extensions:      extensions,
 			IncludeHidden:   includeHidden,
 			IgnoreGitignore: ignoreGitignore,
@@ -63,7 +63,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// gather files
-		results, err := filescombine.Gather(path, opts)
+		results, err := filescombine.Gather(path, gatherOpts)
 		if err != nil {
 			log.Fatalf("Error gathering files: %v", err)
 		}
@@ -81,17 +81,18 @@ var rootCmd = &cobra.Command{
 		}
 
 		// combine files
-		if err := Combine(results, outputFile, format, lineNumbers); err != nil {
+		combineOpts := filescombine.CombineOpts{
+			OutputFile:  outputFile,
+			Format:      format,
+			LineNumbers: lineNumbers,
+		}
+
+		if err := filescombine.Combine(results, combineOpts); err != nil {
 			log.Fatalf("Error combining files: %v", err)
 		}
 
 		log.Printf("Successfully combined files to %s", outputFile)
 	},
-}
-
-func Combine(results []filescombine.FileResult, outputFile, format string, lineNumbers bool) error {
-	// TODO: implement combining logic
-	return nil
 }
 
 func init() {
