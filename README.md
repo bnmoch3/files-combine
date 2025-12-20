@@ -97,3 +97,7 @@ highlighting based on file extension. Handles nested backticks automatically.
 - Syntax highlighting in Markdown output
 - Customizable ignore patterns
 - Line numbering support
+
+## License
+
+MIT
