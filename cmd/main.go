@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -156,16 +157,26 @@ func main() {
 
 	// stage 3: merge & consume results
 	resultsCh := merge(done, workerChs...)
+	var errors []error
 	for result := range resultsCh {
 		if result.Err != nil {
-			fmt.Printf("ERROR processing %s: %v\n", result.RelPath, result.Err)
+			errors = append(errors, fmt.Errorf("%s: %w", result.RelPath, result.Err))
 			continue
 		}
 		fmt.Printf("%s: %s\n", result.RelPath, result.Hash)
 	}
 
+	if len(errors) > 0 {
+		log.Println("\nErrors encountered:")
+		for _, err := range errors {
+			log.Printf("  - %v", err)
+		}
+		os.Exit(1)
+	}
+
 	// check for walk errors
 	if err := <-walkErrCh; err != nil {
-		fmt.Printf("ERROR walking directory: %v\n", err)
+		log.Printf("Error walking directory: %v", err)
+		os.Exit(1)
 	}
 }
