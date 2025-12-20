@@ -105,7 +105,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&ignoreFilesOnly, "ignore-files-only", false, "--ignore only applies to files")
 	rootCmd.Flags().BoolVar(&ignoreGitignore, "ignore-gitignore", false, "Ignore .gitignore files")
 	rootCmd.Flags().StringSliceVar(&ignorePatterns, "ignore", []string{}, "Patterns to ignore")
-	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: combined.txt)")
+	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: output.md or output.xml based on format)")
 	rootCmd.Flags().StringVarP(&format, "format", "f", "markdown", "Output format: 'xml' or 'markdown' (default: markdown)")
 	rootCmd.Flags().BoolVarP(&lineNumbers, "line-numbers", "n", false, "Add line numbers")
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print files that will be combined without processing")
