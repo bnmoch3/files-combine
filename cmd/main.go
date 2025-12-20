@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
+	filescombine "github.com/bnmoch3/files-combine"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +26,7 @@ var rootCmd = &cobra.Command{
 	Short: "Combine files into a prompt for LLMs",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Validate format flag
+		// validate format flag
 		if format != "cxml" && format != "markdown" {
 			log.Fatalf("Invalid format: %s. Must be 'cxml' or 'markdown'", format)
 		}
@@ -40,7 +42,7 @@ var rootCmd = &cobra.Command{
 			path = args[0]
 		}
 
-		// Set default output file if not provided
+		// set default output file if not provided
 		if outputFile == "" {
 			outputFile = "combined.txt"
 		}
@@ -50,8 +52,46 @@ var rootCmd = &cobra.Command{
 		log.Printf("Output file: %s", outputFile)
 		log.Printf("Format: %s", format)
 		log.Printf("Dry run: %v", dryRun)
-		// Call your processing logic here
+
+		// build gather opts
+		opts := filescombine.GatherOptions{
+			Extensions:      extensions,
+			IncludeHidden:   includeHidden,
+			IgnoreGitignore: ignoreGitignore,
+			IgnorePatterns:  ignorePatterns,
+			IgnoreFilesOnly: ignoreFilesOnly,
+		}
+
+		// gather files
+		results, err := filescombine.Gather(path, opts)
+		if err != nil {
+			log.Fatalf("Error gathering files: %v", err)
+		}
+
+		// handle dry run
+		if dryRun {
+			for _, result := range results {
+				if result.Err != nil {
+					log.Printf("Error reading %s: %v", result.RelPath, result.Err)
+					continue
+				}
+				fmt.Println(result.RelPath)
+			}
+			return
+		}
+
+		// combine files
+		if err := Combine(results, outputFile, format, lineNumbers); err != nil {
+			log.Fatalf("Error combining files: %v", err)
+		}
+
+		log.Printf("Successfully combined files to %s", outputFile)
 	},
+}
+
+func Combine(results []filescombine.FileResult, outputFile, format string, lineNumbers bool) error {
+	// TODO: implement combining logic
+	return nil
 }
 
 func init() {

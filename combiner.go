@@ -2,11 +2,9 @@ package filescombine
 
 import (
 	"bufio"
-	"crypto/md5"
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,6 +13,15 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 )
+
+// GatherOptions configuration for file gathering
+type GatherOptions struct {
+	Extensions      []string
+	IncludeHidden   bool
+	IgnoreGitignore bool
+	IgnorePatterns  []string
+	IgnoreFilesOnly bool
+}
 
 // FileInput input for downstream processing
 type FileInput struct {
@@ -26,11 +33,11 @@ type FileInput struct {
 type FileResult struct {
 	Path    string
 	RelPath string
-	Hash    string
+	Content string
 	Err     error
 }
 
-func walkFiles(done <-chan struct{}, dirPath string) (<-chan FileInput, <-chan error) {
+func walkFiles(done <-chan struct{}, dirPath string, opts GatherOptions) (<-chan FileInput, <-chan error) {
 	out := make(chan FileInput)
 	errCh := make(chan error, 1)
 
@@ -39,20 +46,29 @@ func walkFiles(done <-chan struct{}, dirPath string) (<-chan FileInput, <-chan e
 		defer close(errCh)
 
 		// load .gitignore patterns
-		patterns, err := loadGitignorePatterns(dirPath)
-		if err != nil {
-			errCh <- fmt.Errorf("loading gitignore: %w", err)
-			return
-		}
-
 		var matcher gitignore.Matcher
-		if len(patterns) > 0 {
-			matcher = gitignore.NewMatcher(patterns)
+		if !opts.IgnoreGitignore {
+			patterns, err := loadGitignorePatterns(dirPath)
+			if err != nil {
+				errCh <- fmt.Errorf("loading gitignore: %w", err)
+				return
+			}
+			if len(patterns) > 0 {
+				matcher = gitignore.NewMatcher(patterns)
+			}
 		}
 
-		err = filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
+		err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
+			}
+
+			// skip hidden files/dirs if not included
+			if !opts.IncludeHidden && strings.HasPrefix(d.Name(), ".") {
+				if d.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
 			}
 
 			// skip .git and other VCS directories
@@ -82,6 +98,16 @@ func walkFiles(done <-chan struct{}, dirPath string) (<-chan FileInput, <-chan e
 				}
 			}
 
+			// check custom ignore patterns
+			if len(opts.IgnorePatterns) > 0 {
+				if shouldIgnorePatterns(d.Name(), d.IsDir(), opts.IgnorePatterns, opts.IgnoreFilesOnly) {
+					if d.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
+				}
+			}
+
 			// skip directories and non-regular files
 			if d.IsDir() {
 				return nil
@@ -93,6 +119,20 @@ func walkFiles(done <-chan struct{}, dirPath string) (<-chan FileInput, <-chan e
 			}
 			if !info.Mode().IsRegular() {
 				return nil
+			}
+
+			// filter by extensions if provided
+			if len(opts.Extensions) > 0 {
+				matched := false
+				for _, ext := range opts.Extensions {
+					if strings.HasSuffix(d.Name(), ext) {
+						matched = true
+						break
+					}
+				}
+				if !matched {
+					return nil
+				}
 			}
 
 			select {
@@ -111,12 +151,27 @@ func walkFiles(done <-chan struct{}, dirPath string) (<-chan FileInput, <-chan e
 	return out, errCh
 }
 
+func shouldIgnorePatterns(name string, isDir bool, patterns []string, filesOnly bool) bool {
+	// if filesOnly is true and this is a directory, don't ignore
+	if filesOnly && isDir {
+		return false
+	}
+
+	for _, pattern := range patterns {
+		matched, _ := filepath.Match(pattern, name)
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
 func loadGitignorePatterns(dirPath string) ([]gitignore.Pattern, error) {
 	gitignorePath := filepath.Join(dirPath, ".gitignore")
 
 	file, err := os.Open(gitignorePath)
 	if os.IsNotExist(err) {
-		return nil, nil // No .gitignore file, return empty patterns
+		return nil, nil
 	}
 	if err != nil {
 		return nil, err
@@ -129,12 +184,10 @@ func loadGitignorePatterns(dirPath string) ([]gitignore.Pattern, error) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
-		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 
-		// Create pattern
 		patterns = append(patterns, gitignore.ParsePattern(line, nil))
 	}
 
@@ -189,19 +242,19 @@ func merge(done <-chan struct{}, channels ...<-chan FileResult) <-chan FileResul
 	return out
 }
 
-func calculateMD5(path string) (string, error) {
+func readFileContent(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
 
-	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	content, err := io.ReadAll(file)
+	if err != nil {
 		return "", err
 	}
 
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+	return string(content), nil
 }
 
 func processFile(done <-chan struct{}, in <-chan FileInput) <-chan FileResult {
@@ -211,12 +264,12 @@ func processFile(done <-chan struct{}, in <-chan FileInput) <-chan FileResult {
 		defer close(out)
 
 		for input := range in {
-			hash, err := calculateMD5(input.Path)
+			content, err := readFileContent(input.Path)
 
 			result := FileResult{
 				Path:    input.Path,
 				RelPath: input.RelPath,
-				Hash:    hash,
+				Content: content,
 				Err:     err,
 			}
 
@@ -231,9 +284,12 @@ func processFile(done <-chan struct{}, in <-chan FileInput) <-chan FileResult {
 	return out
 }
 
-func Run(done chan struct{}, dirPath string) {
+func Gather(dirPath string, opts GatherOptions) ([]FileResult, error) {
+	done := make(chan struct{})
+	defer close(done)
+
 	// stage 1: walk dirPath and generate file inputs
-	filesCh, walkErrCh := walkFiles(done, dirPath)
+	filesCh, walkErrCh := walkFiles(done, dirPath, opts)
 
 	// stage 2: process files with multiple workers
 	numWorkers := runtime.NumCPU()
@@ -242,28 +298,17 @@ func Run(done chan struct{}, dirPath string) {
 		workerChs[i] = processFile(done, filesCh)
 	}
 
-	// stage 3: merge & consume results
+	// stage 3: merge & collect results
 	resultsCh := merge(done, workerChs...)
-	var errors []error
+	var results []FileResult
 	for result := range resultsCh {
-		if result.Err != nil {
-			errors = append(errors, fmt.Errorf("%s: %w", result.RelPath, result.Err))
-			continue
-		}
-		fmt.Printf("%s: %s\n", result.RelPath, result.Hash)
-	}
-
-	if len(errors) > 0 {
-		log.Println("\nErrors encountered:")
-		for _, err := range errors {
-			log.Printf("  - %v", err)
-		}
-		os.Exit(1)
+		results = append(results, result)
 	}
 
 	// check for walk errors
 	if err := <-walkErrCh; err != nil {
-		log.Printf("Error walking directory: %v", err)
-		os.Exit(1)
+		return results, fmt.Errorf("error walking directory: %w", err)
 	}
+
+	return results, nil
 }
