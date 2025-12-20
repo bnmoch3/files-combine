@@ -124,8 +124,16 @@ func walkFiles(done <-chan struct{}, dirPath string, opts GatherOptions) (<-chan
 			// filter by extensions if provided
 			if len(opts.Extensions) > 0 {
 				matched := false
+				fileExt := filepath.Ext(d.Name()) // e.g., ".go", ".mod", ".sum"
+
 				for _, ext := range opts.Extensions {
-					if strings.HasSuffix(d.Name(), ext) {
+					// add dot if not present
+					wantedExt := ext
+					if !strings.HasPrefix(wantedExt, ".") {
+						wantedExt = "." + wantedExt
+					}
+
+					if fileExt == wantedExt {
 						matched = true
 						break
 					}
