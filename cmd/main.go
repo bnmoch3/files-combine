@@ -99,7 +99,10 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+const version = "1.0.0"
+
 func init() {
+	rootCmd.Version = version
 	rootCmd.Flags().StringSliceVar(&extensions, "ext", []string{}, "File extensions to include")
 	rootCmd.Flags().BoolVar(&includeHidden, "include-hidden", true, "Include files starting with . (default: true)")
 	rootCmd.Flags().BoolVar(&ignoreFilesOnly, "ignore-files-only", false, "--ignore only applies to files")
