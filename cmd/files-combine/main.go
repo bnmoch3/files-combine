@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	filescombine "github.com/bnmoch3/files-combine"
 	"github.com/spf13/cobra"
@@ -21,16 +22,71 @@ var (
 	dryRun          bool
 )
 
+func normalizeOutputFileAndFormat(outputFile, format string) (string, string, error) {
+	// normalize format string to canonical values
+	switch format {
+	case "md", "markdown", "gemini", "chatgpt":
+		format = "markdown"
+	case "xml", "claude":
+		format = "xml"
+	case "":
+		// empty format is ok, we'll derive it from filename if possible
+	default:
+		return "", "", fmt.Errorf("invalid format: %q (must be 'markdown' or 'xml')", format)
+	}
+
+	// case 1: no output file specified
+	if outputFile == "" {
+		if format == "" {
+			return "", "", fmt.Errorf("must specify either output file or format")
+		}
+		// generate default filename based on format
+		switch format {
+		case "markdown":
+			outputFile = "output.md"
+		case "xml":
+			outputFile = "output.xml"
+		}
+		return outputFile, format, nil
+	}
+
+	// case 2: output file specified, preserve filename exactly as provided
+	ext := filepath.Ext(outputFile)
+
+	// Case 2a: file has valid extension (md, xml)
+	if ext == ".md" || ext == ".xml" {
+		// extension determines the format
+		derivedFormat := ""
+		switch ext {
+		case ".md":
+			derivedFormat = "markdown"
+		case ".xml":
+			derivedFormat = "xml"
+		}
+
+		// Warn if user specified a conflicting format flag
+		if format != "" && format != derivedFormat {
+			log.Printf("Warning: format %q overridden by file extension %q", format, ext)
+		}
+
+		return outputFile, derivedFormat, nil
+	}
+
+	// case 2b: File has no extension or invalid extension
+	// filename is preserved as-is; format must be provided via flag
+	if format == "" {
+		return "", "", fmt.Errorf("cannot determine format from filename %q and no format specified", outputFile)
+	}
+
+	// use the provided format flag, keep filename unchanged
+	return outputFile, format, nil
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "files-combine [path]",
 	Short: "Combine files into a prompt for LLMs",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// validate format flag
-		if format != "xml" && format != "markdown" {
-			log.Fatalf("Invalid format: %s. Must be 'xml' or 'markdown'", format)
-		}
-
 		var path string
 		if len(args) == 0 {
 			cwd, err := os.Getwd()
@@ -42,13 +98,9 @@ var rootCmd = &cobra.Command{
 			path = args[0]
 		}
 
-		// set default output file if not provided
-		if outputFile == "" {
-			if format == "markdown" {
-				outputFile = "output.md"
-			} else {
-				outputFile = "output.xml"
-			}
+		outputFile, format, err := normalizeOutputFileAndFormat(outputFile, format)
+		if err != nil {
+			log.Fatal(err)
 		}
 
 		log.Printf("Processing path: %s", path)
@@ -99,7 +151,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-const version = "1.0.1"
+const version = "1.0.2"
 
 func init() {
 	rootCmd.Version = version
@@ -109,7 +161,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&ignoreGitignore, "ignore-gitignore", false, "Ignore .gitignore files")
 	rootCmd.Flags().StringSliceVar(&ignorePatterns, "ignore", []string{}, "Patterns to ignore")
 	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: output.md or output.xml based on format)")
-	rootCmd.Flags().StringVarP(&format, "format", "f", "markdown", "Output format: 'xml' or 'markdown' (default: markdown)")
+	rootCmd.Flags().StringVarP(&format, "format", "f", "xml", "Output format: 'xml' or 'markdown' (default: xml)")
 	rootCmd.Flags().BoolVarP(&lineNumbers, "line-numbers", "n", false, "Add line numbers")
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print files that will be combined without processing")
 }
