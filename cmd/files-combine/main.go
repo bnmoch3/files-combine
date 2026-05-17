@@ -13,16 +13,15 @@ import (
 )
 
 var (
-	extensions      []string
-	includeHidden   bool
-	ignoreFilesOnly bool
-	ignoreGitignore bool
-	ignorePatterns  []string
-	outputFile      string
-	format          string
-	lineNumbers     bool
-	dryRun          bool
-	quiet           bool
+	extensions     []string
+	includeHidden  bool
+	noGitignore    bool
+	ignorePatterns []string
+	outputFile     string
+	format         string
+	lineNumbers    bool
+	dryRun         bool
+	quiet          bool
 )
 
 func normalizeOutputFileAndFormat(outputFile, format string) (string, string, error) {
@@ -116,11 +115,10 @@ var rootCmd = &cobra.Command{
 
 		// build gather opts
 		gatherOpts := filescombine.GatherOptions{
-			Extensions:      extensions,
-			IncludeHidden:   includeHidden,
-			IgnoreGitignore: ignoreGitignore,
-			IgnorePatterns:  ignorePatterns,
-			IgnoreFilesOnly: ignoreFilesOnly,
+			Extensions:     extensions,
+			IncludeHidden:  includeHidden,
+			NoGitignore:    noGitignore,
+			IgnorePatterns: ignorePatterns,
 		}
 
 		// gather files
@@ -176,9 +174,8 @@ const version = "1.0.4"
 func init() {
 	rootCmd.Version = version
 	rootCmd.Flags().StringSliceVar(&extensions, "ext", []string{}, "File extensions to include")
-	rootCmd.Flags().BoolVar(&includeHidden, "include-hidden", true, "Include files starting with . (default: true)")
-	rootCmd.Flags().BoolVar(&ignoreFilesOnly, "ignore-files-only", false, "--ignore only applies to files")
-	rootCmd.Flags().BoolVar(&ignoreGitignore, "ignore-gitignore", false, "Ignore .gitignore files")
+	rootCmd.Flags().BoolVar(&includeHidden, "include-hidden", false, "Include files starting with .")
+	rootCmd.Flags().BoolVar(&noGitignore, "no-gitignore", false, "Ignore .gitignore files")
 	rootCmd.Flags().StringSliceVar(&ignorePatterns, "ignore", []string{}, "Patterns to ignore")
 	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: output.md or output.xml based on format)")
 	rootCmd.Flags().StringVarP(&format, "format", "f", "xml", "Output format: 'xml' or 'markdown' (default: xml)")

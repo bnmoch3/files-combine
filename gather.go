@@ -16,11 +16,10 @@ import (
 
 // GatherOptions configuration for file gathering
 type GatherOptions struct {
-	Extensions      []string
-	IncludeHidden   bool
-	IgnoreGitignore bool
-	IgnorePatterns  []string
-	IgnoreFilesOnly bool
+	Extensions     []string
+	IncludeHidden  bool
+	NoGitignore    bool
+	IgnorePatterns []string
 }
 
 // FileInput input for downstream processing
@@ -47,7 +46,7 @@ func walkFiles(done <-chan struct{}, dirPath string, opts GatherOptions) (<-chan
 
 		// load .gitignore patterns
 		var matcher gitignore.Matcher
-		if !opts.IgnoreGitignore {
+		if !opts.NoGitignore {
 			patterns, err := loadGitignorePatterns(dirPath)
 			if err != nil {
 				errCh <- fmt.Errorf("loading gitignore: %w", err)
@@ -100,7 +99,7 @@ func walkFiles(done <-chan struct{}, dirPath string, opts GatherOptions) (<-chan
 
 			// check custom ignore patterns
 			if len(opts.IgnorePatterns) > 0 {
-				if shouldIgnorePatterns(d.Name(), d.IsDir(), opts.IgnorePatterns, opts.IgnoreFilesOnly) {
+				if shouldIgnorePatterns(d.Name(), opts.IgnorePatterns) {
 					if d.IsDir() {
 						return filepath.SkipDir
 					}
@@ -159,12 +158,7 @@ func walkFiles(done <-chan struct{}, dirPath string, opts GatherOptions) (<-chan
 	return out, errCh
 }
 
-func shouldIgnorePatterns(name string, isDir bool, patterns []string, filesOnly bool) bool {
-	// if filesOnly is true and this is a directory, don't ignore
-	if filesOnly && isDir {
-		return false
-	}
-
+func shouldIgnorePatterns(name string, patterns []string) bool {
 	for _, pattern := range patterns {
 		matched, _ := filepath.Match(pattern, name)
 		if matched {

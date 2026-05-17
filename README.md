@@ -66,17 +66,16 @@ files-combine --ignore "vendor" --ignore "*_test.go"
 
 ## Flags
 
-| Flag                  | Short | Default                     | Description                                   |
-| --------------------- | ----- | --------------------------- | --------------------------------------------- |
-| `--ext`               |       |                             | File extensions to include (comma-separated)  |
-| `--include-hidden`    |       | `true`                      | Include files starting with `.`               |
-| `--ignore-gitignore`  |       | `false`                     | Ignore .gitignore rules                       |
-| `--ignore`            |       |                             | Additional patterns to ignore                 |
-| `--ignore-files-only` |       | `false`                     | Apply --ignore only to files, not directories |
-| `--output`            | `-o`  | `output.md` or `output.xml` | Output file path                              |
-| `--format`            | `-f`  | `markdown`                  | Output format (`markdown` or `xml`)           |
-| `--line-numbers`      | `-n`  | `false`                     | Add line numbers to output                    |
-| `--dry-run`           |       | `false`                     | Print files that would be combined            |
+| Flag               | Short | Default                     | Description                                  |
+| ------------------ | ----- | --------------------------- | -------------------------------------------- |
+| `--ext`            |       |                             | File extensions to include (comma-separated) |
+| `--include-hidden` |       | `false`                     | Include files starting with `.`              |
+| `--no-gitignore`   |       | `false`                     | Ignore .gitignore rules                      |
+| `--ignore`         |       |                             | Additional patterns to ignore                |
+| `--output`         | `-o`  | `output.md` or `output.xml` | Output file path                             |
+| `--format`         | `-f`  | `markdown`                  | Output format (`markdown` or `xml`)          |
+| `--line-numbers`   | `-n`  | `false`                     | Add line numbers to output                   |
+| `--dry-run`        |       | `false`                     | Print files that would be combined           |
 
 ## Output Formats
 
