@@ -11,6 +11,7 @@ type CombineOpts struct {
 	OutputFile  string
 	Format      string // "markdown" or "xml"
 	LineNumbers bool
+	Verbose     bool
 }
 
 var extToLang = map[string]string{
@@ -42,15 +43,18 @@ func Combine(results []FileResult, opts CombineOpts) error {
 	defer file.Close()
 
 	if opts.Format == "xml" {
-		return combineAsXML(file, results, opts.LineNumbers)
+		return combineAsXML(file, results, opts.LineNumbers, opts.Verbose)
 	}
-	return combineAsMarkdown(file, results, opts.LineNumbers)
+	return combineAsMarkdown(file, results, opts.LineNumbers, opts.Verbose)
 }
 
-func combineAsMarkdown(file *os.File, results []FileResult, lineNumbers bool) error {
+func combineAsMarkdown(file *os.File, results []FileResult, lineNumbers bool, verbose bool) error {
 	for _, result := range results {
 		if result.Err != nil {
 			continue // skip files with errors
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, "combining:", result.RelPath)
 		}
 
 		content := result.Content
@@ -78,13 +82,16 @@ func combineAsMarkdown(file *os.File, results []FileResult, lineNumbers bool) er
 	return nil
 }
 
-func combineAsXML(file *os.File, results []FileResult, lineNumbers bool) error {
+func combineAsXML(file *os.File, results []FileResult, lineNumbers bool, verbose bool) error {
 	fmt.Fprintln(file, "<documents>")
 
 	index := 1
 	for _, result := range results {
 		if result.Err != nil {
 			continue
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, "combining:", result.RelPath)
 		}
 
 		content := result.Content

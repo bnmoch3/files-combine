@@ -20,6 +20,7 @@ var (
 	format          string
 	lineNumbers     bool
 	dryRun          bool
+	quiet           bool
 )
 
 func normalizeOutputFileAndFormat(outputFile, format string) (string, string, error) {
@@ -103,11 +104,13 @@ var rootCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		log.Printf("Processing path: %s", path)
-		log.Printf("Extensions: %v", extensions)
-		log.Printf("Output file: %s", outputFile)
-		log.Printf("Format: %s", format)
-		log.Printf("Dry run: %v", dryRun)
+		if !quiet {
+			log.Printf("Processing path: %s", path)
+			log.Printf("Extensions: %v", extensions)
+			log.Printf("Output file: %s", outputFile)
+			log.Printf("Format: %s", format)
+			log.Printf("Dry run: %v", dryRun)
+		}
 
 		// build gather opts
 		gatherOpts := filescombine.GatherOptions{
@@ -141,13 +144,16 @@ var rootCmd = &cobra.Command{
 			OutputFile:  outputFile,
 			Format:      format,
 			LineNumbers: lineNumbers,
+			Verbose:     !quiet,
 		}
 
 		if err := filescombine.Combine(results, combineOpts); err != nil {
 			log.Fatalf("Error combining files: %v", err)
 		}
 
-		log.Printf("Successfully combined files to %s", outputFile)
+		if !quiet {
+			log.Printf("Successfully combined files to %s", outputFile)
+		}
 	},
 }
 
@@ -164,6 +170,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&format, "format", "f", "xml", "Output format: 'xml' or 'markdown' (default: xml)")
 	rootCmd.Flags().BoolVarP(&lineNumbers, "line-numbers", "n", false, "Add line numbers")
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print files that will be combined without processing")
+	rootCmd.Flags().BoolVar(&quiet, "quiet", false, "Suppress all log output")
 }
 
 func main() {
