@@ -53,16 +53,31 @@ func walkFiles(done <-chan struct{}, dirPath string, opts GatherOptions) (<-chan
 		defer close(out)
 		defer close(errCh)
 
-		// load .gitignore patterns
+		// load .gitignore patterns from project root down to dirPath
+		root := FindProjectRoot(dirPath)
+		var patterns []gitignore.Pattern
 		var matcher gitignore.Matcher
+		loadedGitignoreDirs := map[string]bool{}
 		if !opts.NoGitignore {
-			patterns, err := loadGitignorePatterns(dirPath)
+			p, err := loadGitignorePatterns(dirPath)
 			if err != nil {
 				errCh <- fmt.Errorf("loading gitignore: %w", err)
 				return
 			}
+			patterns = p
 			if len(patterns) > 0 {
 				matcher = gitignore.NewMatcher(patterns)
+			}
+			// mark dirs from root to dirPath as already loaded
+			loadedGitignoreDirs[root] = true
+			rel, _ := filepath.Rel(root, dirPath)
+			rel = filepath.ToSlash(rel)
+			if rel != "." {
+				parts := strings.Split(rel, "/")
+				for i := range parts {
+					subPath := filepath.Join(root, filepath.Join(parts[:i+1]...))
+					loadedGitignoreDirs[subPath] = true
+				}
 			}
 		}
 
@@ -96,9 +111,26 @@ func walkFiles(done <-chan struct{}, dirPath string, opts GatherOptions) (<-chan
 			// convert to forward slashes for gitignore matching
 			relPath = filepath.ToSlash(relPath)
 
-			// check gitignore (skip root)
+			// relative path from project root for correctly scoped gitignore matching
+			relFromRoot, rfErr := filepath.Rel(root, path)
+			if rfErr != nil {
+				relFromRoot = relPath
+			}
+			relFromRoot = filepath.ToSlash(relFromRoot)
+
+			// dynamically load .gitignore files as we descend into subdirectories
+			if !opts.NoGitignore && d.IsDir() && !loadedGitignoreDirs[path] {
+				domain := strings.Split(relFromRoot, "/")
+				if p, err := parseGitignoreFile(filepath.Join(path, ".gitignore"), domain); err == nil && len(p) > 0 {
+					patterns = append(patterns, p...)
+					matcher = gitignore.NewMatcher(patterns)
+				}
+				loadedGitignoreDirs[path] = true
+			}
+
+			// check gitignore (skip root of walk)
 			if matcher != nil && relPath != "." {
-				if shouldIgnore(matcher, relPath, d.IsDir()) {
+				if shouldIgnore(matcher, relFromRoot, d.IsDir()) {
 					if d.IsDir() {
 						return filepath.SkipDir
 					}
@@ -243,11 +275,8 @@ func FindProjectRoot(startPath string) string {
 	}
 }
 
-func loadGitignorePatterns(dirPath string) ([]gitignore.Pattern, error) {
-	root := FindProjectRoot(dirPath)
-	gitignorePath := filepath.Join(root, ".gitignore")
-
-	file, err := os.Open(gitignorePath)
+func parseGitignoreFile(path string, domain []string) ([]gitignore.Pattern, error) {
+	file, err := os.Open(path)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -258,21 +287,47 @@ func loadGitignorePatterns(dirPath string) ([]gitignore.Pattern, error) {
 
 	var patterns []gitignore.Pattern
 	scanner := bufio.NewScanner(file)
-
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
+		patterns = append(patterns, gitignore.ParsePattern(line, domain))
+	}
+	return patterns, scanner.Err()
+}
 
-		patterns = append(patterns, gitignore.ParsePattern(line, nil))
+func loadGitignorePatterns(dirPath string) ([]gitignore.Pattern, error) {
+	root := FindProjectRoot(dirPath)
+
+	rel, err := filepath.Rel(root, dirPath)
+	if err != nil {
+		rel = "."
+	}
+	rel = filepath.ToSlash(rel)
+
+	type dirEntry struct {
+		path   string
+		domain []string
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	dirs := []dirEntry{{root, nil}}
+	if rel != "." {
+		parts := strings.Split(rel, "/")
+		for i := range parts {
+			subPath := filepath.Join(root, filepath.Join(parts[:i+1]...))
+			dirs = append(dirs, dirEntry{subPath, append([]string(nil), parts[:i+1]...)})
+		}
 	}
 
+	var patterns []gitignore.Pattern
+	for _, d := range dirs {
+		p, err := parseGitignoreFile(filepath.Join(d.path, ".gitignore"), d.domain)
+		if err != nil {
+			return nil, err
+		}
+		patterns = append(patterns, p...)
+	}
 	return patterns, nil
 }
 
