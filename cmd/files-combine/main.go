@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	filescombine "github.com/bnmoch3/files-combine"
@@ -128,22 +129,27 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("Error gathering files: %v", err)
 		}
 
+		sort.Slice(results, func(i, j int) bool {
+			return strings.ToLower(results[i].RelPath) < strings.ToLower(results[j].RelPath)
+		})
+
+		if !quiet {
+			fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
+			fmt.Fprintln(os.Stderr, "Combining:")
+			for _, result := range results {
+				if result.Err == nil {
+					fmt.Fprintln(os.Stderr, "    "+result.RelPath)
+				}
+			}
+			fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
+		}
+
 		// handle dry run
 		if dryRun {
-			if !quiet {
-				fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
-			}
 			for _, result := range results {
 				if result.Err != nil {
 					log.Printf("Error reading %s: %v", result.RelPath, result.Err)
-					continue
 				}
-				if !quiet {
-					fmt.Fprintln(os.Stderr, result.RelPath)
-				}
-			}
-			if !quiet {
-				fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
 			}
 			return
 		}
@@ -153,17 +159,10 @@ var rootCmd = &cobra.Command{
 			OutputFile:  outputFile,
 			Format:      format,
 			LineNumbers: lineNumbers,
-			Verbose:     !quiet,
 		}
 
-		if !quiet {
-			fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
-		}
 		if err := filescombine.Combine(results, combineOpts); err != nil {
 			log.Fatalf("Error combining files: %v", err)
-		}
-		if !quiet {
-			fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
 		}
 
 		if !quiet {
@@ -172,7 +171,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-const version = "1.0.3"
+const version = "1.0.4"
 
 func init() {
 	rootCmd.Version = version
