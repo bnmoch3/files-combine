@@ -20,7 +20,12 @@ go build -o files-combine cmd/main.go
 
 ## Features
 
-- Respects .gitignore by default
+- Respects .gitignore by default, including nested .gitignore files in subdirectories
+- Smart filtering via go-enry: excludes binary, generated, vendored, and configuration
+  files by default
+- Automatically detects project root (looks for `.git`, `go.mod`, `package.json` etc.)
+  so .gitignore rules work correctly even when run from a subdirectory
+- Quiet mode to suppress all diagnostic output
 - Customizable ignore patterns
 - Line numbering support
 
@@ -34,8 +39,8 @@ to automatically exclude files that add noise rather than useful context:
 - **Always included**: source code, documentation files, and known doc filenames
   (`README`, `CHANGELOG`, `CONTRIBUTING`, `LICENSE` and their `.md`/`.txt` variants)
 
-Use `--all` to disable smart filtering and include every file (still respects
-`.gitignore` and `--ignore` patterns).
+Use `--all` to disable smart filtering and include every file. Smart filtering
+still respects `.gitignore` and `--ignore` patterns.
 
 ## Usage
 
@@ -47,7 +52,7 @@ If no `[path]` is provided then the current working directory is used.
 
 ## Examples
 
-Basic usage (combines all files in current dir to output.md):
+Basic usage (combines all files in current dir to output.xml):
 
 ```bash
 files-combine
@@ -59,10 +64,10 @@ Filter by extension and add line numbers:
 files-combine --ext go,js --line-numbers
 ```
 
-Output to XML:
+Suppress all diagnostic output:
 
-```
-files-combine --format xml --output context.xml
+```bash
+files-combine --quiet --format xml
 ```
 
 Preview files to be processed without writing:
@@ -71,25 +76,32 @@ Preview files to be processed without writing:
 files-combine --dry-run
 ```
 
-Ignore specific patterns:
+Bypass smart filtering:
 
 ```bash
-files-combine --ignore "vendor" --ignore "*_test.go"
+files-combine --all --format xml
+```
+
+Ignore .gitignore rules:
+
+```bash
+files-combine --no-gitignore --format xml
 ```
 
 ## Flags
 
-| Flag               | Short | Default                     | Description                                          |
-| ------------------ | ----- | --------------------------- | ---------------------------------------------------- |
-| `--ext`            |       |                             | File extensions to include (comma-separated)         |
-| `--include-hidden` |       | `false`                     | Include files starting with `.`                      |
-| `--no-gitignore`   |       | `false`                     | Ignore .gitignore rules                              |
-| `--ignore`         |       |                             | Additional patterns to ignore                        |
-| `--all`            |       | `false`                     | Disable smart filtering, include all file types      |
-| `--output`         | `-o`  | `output.md` or `output.xml` | Output file path                                     |
-| `--format`         | `-f`  | `markdown`                  | Output format (`markdown` or `xml`)                  |
-| `--line-numbers`   | `-n`  | `false`                     | Add line numbers to output                           |
-| `--dry-run`        |       | `false`                     | Print files that would be combined                   |
+| Flag               | Short | Default                     | Description                                     |
+| ------------------ | ----- | --------------------------- | ----------------------------------------------- |
+| `--ext`            |       |                             | File extensions to include (comma-separated)    |
+| `--include-hidden` |       | `false`                     | Include files starting with `.`                 |
+| `--no-gitignore`   |       | `false`                     | Ignore .gitignore rules                         |
+| `--ignore`         |       |                             | Additional patterns to ignore                   |
+| `--all`            |       | `false`                     | Disable smart filtering, include all file types |
+| `--output`         | `-o`  | `output.md` or `output.xml` | Output file path                                |
+| `--format`         | `-f`  | `xml`                       | Output format (`markdown` or `xml`)             |
+| `--line-numbers`   | `-n`  | `false`                     | Add line numbers to output                      |
+| `--dry-run`        |       | `false`                     | Print files that would be combined              |
+| `--quiet`          |       | `false`                     | Suppress all log output                         |
 
 ## Output Formats
 
