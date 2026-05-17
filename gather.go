@@ -198,8 +198,54 @@ func shouldIgnorePatterns(name string, patterns []string) bool {
 	return false
 }
 
+var otherRootMarkers = []string{
+	"go.mod", "package.json", "Cargo.toml", "pyproject.toml", "pom.xml", "Makefile",
+}
+
+func FindProjectRoot(startPath string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return startPath
+	}
+
+	// first pass: .git takes priority — a git root beats any other marker
+	dir := startPath
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		if dir == home {
+			break
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	// second pass: no .git found anywhere; fall back to other markers
+	dir = startPath
+	for {
+		for _, marker := range otherRootMarkers {
+			if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
+				return dir
+			}
+		}
+		if dir == home {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return startPath
+		}
+		dir = parent
+	}
+}
+
 func loadGitignorePatterns(dirPath string) ([]gitignore.Pattern, error) {
-	gitignorePath := filepath.Join(dirPath, ".gitignore")
+	root := FindProjectRoot(dirPath)
+	gitignorePath := filepath.Join(root, ".gitignore")
 
 	file, err := os.Open(gitignorePath)
 	if os.IsNotExist(err) {
