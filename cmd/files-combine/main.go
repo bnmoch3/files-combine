@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	filescombine "github.com/bnmoch3/files-combine"
 	"github.com/spf13/cobra"
@@ -129,12 +130,20 @@ var rootCmd = &cobra.Command{
 
 		// handle dry run
 		if dryRun {
+			if !quiet {
+				fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
+			}
 			for _, result := range results {
 				if result.Err != nil {
 					log.Printf("Error reading %s: %v", result.RelPath, result.Err)
 					continue
 				}
-				fmt.Println(result.RelPath)
+				if !quiet {
+					fmt.Fprintln(os.Stderr, result.RelPath)
+				}
+			}
+			if !quiet {
+				fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
 			}
 			return
 		}
@@ -147,8 +156,14 @@ var rootCmd = &cobra.Command{
 			Verbose:     !quiet,
 		}
 
+		if !quiet {
+			fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
+		}
 		if err := filescombine.Combine(results, combineOpts); err != nil {
 			log.Fatalf("Error combining files: %v", err)
+		}
+		if !quiet {
+			fmt.Fprintln(os.Stderr, strings.Repeat("-", 80))
 		}
 
 		if !quiet {
