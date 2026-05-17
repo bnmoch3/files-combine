@@ -112,6 +112,7 @@ var rootCmd = &cobra.Command{
 			log.Printf("Output file: %s", outputFile)
 			log.Printf("Format: %s", format)
 			log.Printf("Dry run: %v", dryRun)
+			log.Printf("Project root: %s", filescombine.FindProjectRoot(path))
 			if allFiles {
 				log.Printf("Smart filtering: disabled")
 			} else {
