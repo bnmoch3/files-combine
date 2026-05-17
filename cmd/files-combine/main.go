@@ -22,6 +22,7 @@ var (
 	lineNumbers    bool
 	dryRun         bool
 	quiet          bool
+	allFiles       bool
 )
 
 func normalizeOutputFileAndFormat(outputFile, format string) (string, string, error) {
@@ -111,6 +112,11 @@ var rootCmd = &cobra.Command{
 			log.Printf("Output file: %s", outputFile)
 			log.Printf("Format: %s", format)
 			log.Printf("Dry run: %v", dryRun)
+			if allFiles {
+				log.Printf("Smart filtering: disabled")
+			} else {
+				log.Printf("Smart filtering: enabled (use --all to include all files)")
+			}
 		}
 
 		// build gather opts
@@ -119,6 +125,7 @@ var rootCmd = &cobra.Command{
 			IncludeHidden:  includeHidden,
 			NoGitignore:    noGitignore,
 			IgnorePatterns: ignorePatterns,
+			AllFiles:       allFiles,
 		}
 
 		// gather files
@@ -182,6 +189,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&lineNumbers, "line-numbers", "n", false, "Add line numbers")
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print files that will be combined without processing")
 	rootCmd.Flags().BoolVar(&quiet, "quiet", false, "Suppress all log output")
+	rootCmd.Flags().BoolVar(&allFiles, "all", false, "Disable smart filtering, include all file types (still respects .gitignore)")
 }
 
 func main() {

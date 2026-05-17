@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-enry/go-enry/v2"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 )
 
@@ -20,6 +21,14 @@ type GatherOptions struct {
 	IncludeHidden  bool
 	NoGitignore    bool
 	IgnorePatterns []string
+	AllFiles       bool
+}
+
+var docFilenames = map[string]bool{
+	"README": true, "README.md": true, "README.txt": true,
+	"CHANGELOG": true, "CHANGELOG.md": true,
+	"CONTRIBUTING": true, "CONTRIBUTING.md": true,
+	"LICENSE": true, "LICENSE.md": true,
 }
 
 // FileInput input for downstream processing
@@ -107,6 +116,11 @@ func walkFiles(done <-chan struct{}, dirPath string, opts GatherOptions) (<-chan
 				}
 			}
 
+			// smart filtering: skip vendor directories
+			if !opts.AllFiles && d.IsDir() && enry.IsVendor(relPath) {
+				return filepath.SkipDir
+			}
+
 			// skip directories and non-regular files
 			if d.IsDir() {
 				return nil
@@ -139,6 +153,22 @@ func walkFiles(done <-chan struct{}, dirPath string, opts GatherOptions) (<-chan
 				}
 				if !matched {
 					return nil
+				}
+			}
+
+			// smart filtering: skip vendor, binary, generated, configuration files
+			if !opts.AllFiles {
+				sample, err := readFileSample(path, 512)
+				if err == nil {
+					if enry.IsBinary(sample) {
+						return nil
+					}
+					isDoc := enry.IsDocumentation(relPath) || docFilenames[d.Name()]
+					if !isDoc {
+						if enry.IsVendor(relPath) || enry.IsGenerated(relPath, sample) || enry.IsConfiguration(relPath) {
+							return nil
+						}
+					}
 				}
 			}
 
@@ -242,6 +272,20 @@ func merge(done <-chan struct{}, channels ...<-chan FileResult) <-chan FileResul
 	}()
 
 	return out
+}
+
+func readFileSample(path string, n int) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	buf := make([]byte, n)
+	nr, err := io.ReadFull(f, buf)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		return nil, err
+	}
+	return buf[:nr], nil
 }
 
 func readFileContent(path string) (string, error) {

@@ -24,6 +24,19 @@ go build -o files-combine cmd/main.go
 - Customizable ignore patterns
 - Line numbering support
 
+## Smart filtering
+
+By default, files-combine uses [go-enry](https://github.com/go-enry/go-enry)
+to automatically exclude files that add noise rather than useful context:
+
+- **Excluded**: binary files, generated files (e.g. `*.pb.go`, minified JS),
+  vendored dependencies, and configuration files (e.g. `.env`, `*.lock`)
+- **Always included**: source code, documentation files, and known doc filenames
+  (`README`, `CHANGELOG`, `CONTRIBUTING`, `LICENSE` and their `.md`/`.txt` variants)
+
+Use `--all` to disable smart filtering and include every file (still respects
+`.gitignore` and `--ignore` patterns).
+
 ## Usage
 
 ```
@@ -66,16 +79,17 @@ files-combine --ignore "vendor" --ignore "*_test.go"
 
 ## Flags
 
-| Flag               | Short | Default                     | Description                                  |
-| ------------------ | ----- | --------------------------- | -------------------------------------------- |
-| `--ext`            |       |                             | File extensions to include (comma-separated) |
-| `--include-hidden` |       | `false`                     | Include files starting with `.`              |
-| `--no-gitignore`   |       | `false`                     | Ignore .gitignore rules                      |
-| `--ignore`         |       |                             | Additional patterns to ignore                |
-| `--output`         | `-o`  | `output.md` or `output.xml` | Output file path                             |
-| `--format`         | `-f`  | `markdown`                  | Output format (`markdown` or `xml`)          |
-| `--line-numbers`   | `-n`  | `false`                     | Add line numbers to output                   |
-| `--dry-run`        |       | `false`                     | Print files that would be combined           |
+| Flag               | Short | Default                     | Description                                          |
+| ------------------ | ----- | --------------------------- | ---------------------------------------------------- |
+| `--ext`            |       |                             | File extensions to include (comma-separated)         |
+| `--include-hidden` |       | `false`                     | Include files starting with `.`                      |
+| `--no-gitignore`   |       | `false`                     | Ignore .gitignore rules                              |
+| `--ignore`         |       |                             | Additional patterns to ignore                        |
+| `--all`            |       | `false`                     | Disable smart filtering, include all file types      |
+| `--output`         | `-o`  | `output.md` or `output.xml` | Output file path                                     |
+| `--format`         | `-f`  | `markdown`                  | Output format (`markdown` or `xml`)                  |
+| `--line-numbers`   | `-n`  | `false`                     | Add line numbers to output                           |
+| `--dry-run`        |       | `false`                     | Print files that would be combined                   |
 
 ## Output Formats
 
